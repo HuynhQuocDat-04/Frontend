@@ -1,6 +1,5 @@
 import { Col, Image, Row } from 'antd'
-import React, { useMemo, useState } from 'react'
-import imageProductSmall from '../../Assets/img/MTP-1183A-2A.jpg'
+import React, { useEffect, useMemo, useState } from 'react'
 import { WrapperStyleImageSmall, WrapperStyleColImage, WrapperStyleNameProduct, WrapperStyleTextSell, WrapperPriceProduct, WrapperPriceTextProduct, WrapperAddressProduct, WrapperQualityProduct, WrapperInputNumber } from './style'
 import { StarFilled, PlusOutlined, MinusOutlined } from '@ant-design/icons'
 import ButtonComponent from '../ButtonComponent/ButtonComponent'
@@ -14,6 +13,7 @@ import { convertPrice } from '../../utils'
 
 const ProductDetailComponent = ({ idProduct }) => {
     const [numProduct, setNumProduct] = useState(1) 
+    const [activeImage, setActiveImage] = useState('')
     const user = useSelector((state) => state.user) 
     const navigate = useNavigate()
     const location = useLocation()
@@ -94,18 +94,49 @@ const ProductDetailComponent = ({ idProduct }) => {
         return specs
     }, [productDetails?.description])
 
+    const galleryImages = useMemo(() => {
+        const gallery = Array.isArray(productDetails?.gallery)
+            ? productDetails.gallery.filter((item) => typeof item === 'string' && item.trim()).slice(0, 6)
+            : []
+        if (gallery.length > 0) return gallery
+        return productDetails?.image ? [productDetails.image] : []
+    }, [productDetails?.gallery, productDetails?.image])
+
+    const gallerySlots = useMemo(() => {
+        return Array.from({ length: 6 }, (_, index) => galleryImages[index] || '')
+    }, [galleryImages])
+
+    useEffect(() => {
+        if (productDetails?.image) {
+            setActiveImage(productDetails.image)
+        }
+    }, [productDetails?.image])
+
     return (
         <Loading isLoading={isLoading}>
             <Row style={{ padding: '16px', background: '#fff', borderRadius: '4px' }}>
                 <Col span={10} style={{ borderRight: '1px solid #e5e5e5', paddingRight: '8px' }}>
-                    <Image src={productDetails?.image} alt="image product" preview={false} />
+                    <Image src={activeImage || productDetails?.image} alt="image product" preview={false} />
                     <Row style={{ paddingTop: '10px', justifyContent: 'space-between' }}>
-                        <WrapperStyleColImage span={4}><WrapperStyleImageSmall src={imageProductSmall} alt="image small" preview={false} /></WrapperStyleColImage>
-                        <WrapperStyleColImage span={4}><WrapperStyleImageSmall src={imageProductSmall} alt="image small" preview={false} /></WrapperStyleColImage>
-                        <WrapperStyleColImage span={4}><WrapperStyleImageSmall src={imageProductSmall} alt="image small" preview={false} /></WrapperStyleColImage>
-                        <WrapperStyleColImage span={4}><WrapperStyleImageSmall src={imageProductSmall} alt="image small" preview={false} /></WrapperStyleColImage>
-                        <WrapperStyleColImage span={4}><WrapperStyleImageSmall src={imageProductSmall} alt="image small" preview={false} /></WrapperStyleColImage>
-                        <WrapperStyleColImage span={4}><WrapperStyleImageSmall src={imageProductSmall} alt="image small" preview={false} /></WrapperStyleColImage>
+                        {gallerySlots.map((thumb, index) => (
+                            <WrapperStyleColImage span={4} key={`thumb-${index}`}>
+                                {thumb ? (
+                                    <div
+                                        onClick={() => setActiveImage(thumb)}
+                                        style={{
+                                            border: activeImage === thumb ? '2px solid #1677ff' : '1px solid #e5e5e5',
+                                            borderRadius: '6px',
+                                            padding: '2px',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <WrapperStyleImageSmall src={thumb} alt={`image-small-${index + 1}`} preview={false} />
+                                    </div>
+                                ) : (
+                                    <div style={{ width: '64px', height: '64px', border: '1px dashed #d9d9d9', borderRadius: '6px', background: '#fafafa' }} />
+                                )}
+                            </WrapperStyleColImage>
+                        ))}
                     </Row>
                 </Col>
                 <Col span={14} style={{ paddingLeft: '10px' }}>

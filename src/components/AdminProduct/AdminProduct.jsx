@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { WrapperHeader, WrapperUploadFile } from './style'
-import { Button, Form, Input, Upload, Space, Select } from 'antd' 
+import { Button, Form, Input, Upload, Space, Select, Modal } from 'antd' 
 import { PlusOutlined, UploadOutlined, DeleteOutlined, EditOutlined, SearchOutlined } from '@ant-design/icons'
 import TableComponent from '../TableComponent/TableComponent'
 import { getBase64, renderOptions } from '../../utils' 
@@ -9,7 +9,6 @@ import { useQuery } from '@tanstack/react-query'
 import DrawerComponent from '../DrawerComponent/DrawerComponent'
 import ModalComponent from '../ModalComponent/ModalComponent'
 import { useSelector } from 'react-redux'
-import Modal from 'antd/es/modal/Modal'
 
 const { TextArea } = Input
 
@@ -19,8 +18,6 @@ const AdminProduct = () => {
   const [isOpenDrawer, setIsOpenDrawer] = useState(false); 
   const [isModalOpenDelete, setIsModalOpenDelete] = useState(false);
   const [listSelected, setListSelected] = useState([]); 
-
-  const [typeSelect, setTypeSelect] = useState('')
 
   const [form] = Form.useForm();
   const [formUpdate] = Form.useForm(); 
@@ -47,7 +44,7 @@ const AdminProduct = () => {
 
   // Gom các giá trị khởi tạo vào hàm initial để reset form triệt để
   const initial = () => ({
-    name: '', price: '', description: '', rating: '', image: '', type: '', countInStock: '', newType: '', discount: ''
+    name: '', price: '', description: '', rating: '', image: '', gallery: [], type: '', countInStock: '', newType: '', discount: ''
   })
 
   const [stateProduct, setStateProduct] = useState(initial())
@@ -71,7 +68,7 @@ const AdminProduct = () => {
         setStateProductDetails({
             name: res?.data?.name, price: res?.data?.price, description: res?.data?.description,
             rating: res?.data?.rating, image: res?.data?.image, type: res?.data?.type, countInStock: res?.data?.countInStock,
-            discount: res?.data?.discount
+        discount: res?.data?.discount, gallery: res?.data?.gallery || []
         })
     }
   }
@@ -130,9 +127,44 @@ const AdminProduct = () => {
       setStateProduct({ ...stateProduct, type: value })
   }
 
+  const mapGalleryToUploadList = (gallery = []) => {
+    return gallery.map((url, index) => ({
+      uid: `gallery-${index}`,
+      name: `gallery-${index + 1}.png`,
+      status: 'done',
+      url,
+    }))
+  }
+
+  const normalizeGalleryFromFileList = async (fileList = []) => {
+    const normalized = await Promise.all(
+      fileList.slice(0, 6).map(async (file) => {
+        if (file?.url) return file.url
+        if (file?.preview) return file.preview
+        if (file?.originFileObj) {
+          const preview = await getBase64(file.originFileObj)
+          file.preview = preview
+          return preview
+        }
+        return ''
+      })
+    )
+    return normalized.filter(Boolean)
+  }
+
   const handleOnChangeAvatar = async ({ fileList }) => {
-    const file = fileList[0]; if (!file.url && !file.preview) file.preview = await getBase64(file.originFileObj);
-    setStateProduct({ ...stateProduct, image: file.preview })
+    const file = fileList[0]
+    if (!file) {
+      setStateProduct({ ...stateProduct, image: '' })
+      return
+    }
+    if (!file.url && !file.preview) file.preview = await getBase64(file.originFileObj)
+    setStateProduct({ ...stateProduct, image: file.url || file.preview })
+  }
+
+  const handleOnChangeGallery = async ({ fileList }) => {
+    const gallery = await normalizeGalleryFromFileList(fileList)
+    setStateProduct({ ...stateProduct, gallery })
   }
 
   const onFinish = async () => {
@@ -142,6 +174,7 @@ const AdminProduct = () => {
         description: stateProduct.description,
         rating: stateProduct.rating,
         image: stateProduct.image,
+        gallery: stateProduct.gallery,
         countInStock: stateProduct.countInStock,
         discount: stateProduct.discount,
         type: stateProduct.type === 'add_type' ? stateProduct.newType : stateProduct.type 
@@ -153,11 +186,23 @@ const AdminProduct = () => {
   const handleCloseDrawer = () => { setIsOpenDrawer(false); setStateProductDetails(initial()); formUpdate.resetFields(); };
   const handleOnChangeDetails = (e) => setStateProductDetails({ ...stateProductDetails, [e.target.name]: e.target.value })
   const handleOnChangeAvatarDetails = async ({ fileList }) => {
-    const file = fileList[0]; if (!file.url && !file.preview) file.preview = await getBase64(file.originFileObj);
-    setStateProductDetails({ ...stateProductDetails, image: file.preview })
+    const file = fileList[0]
+    if (!file) {
+      setStateProductDetails({ ...stateProductDetails, image: '' })
+      return
+    }
+    if (!file.url && !file.preview) file.preview = await getBase64(file.originFileObj)
+    setStateProductDetails({ ...stateProductDetails, image: file.url || file.preview })
+  }
+  const handleOnChangeGalleryDetails = async ({ fileList }) => {
+    const gallery = await normalizeGalleryFromFileList(fileList)
+    setStateProductDetails({ ...stateProductDetails, gallery })
   }
   const onUpdateProduct = async () => {
-    const res = await ProductService.updateProduct(rowSelected, user?.access_token, stateProductDetails)
+    const res = await ProductService.updateProduct(rowSelected, user?.access_token, {
+      ...stateProductDetails,
+      gallery: stateProductDetails.gallery || []
+    })
     if(res?.status === 'OK') { alert('Cập nhật thành công!'); handleCloseDrawer(); refetch(); } else { alert('Có lỗi xảy ra!'); }
   }
   const handleCancelDelete = () => { setIsModalOpenDelete(false) }
@@ -224,11 +269,22 @@ const AdminProduct = () => {
                 </Form.Item>
                 <Form.Item label="Hình ảnh" name="image" rules={[{ required: true, message: 'Vui lòng chọn ảnh!' }]}>
                     <WrapperUploadFile>
-                        <Upload onChange={handleOnChangeAvatar} maxCount={1}>
+                    <Upload onChange={handleOnChangeAvatar} maxCount={1} fileList={stateProduct?.image ? [{ uid: 'main-image', name: 'main-image.png', status: 'done', url: stateProduct.image }] : []}>
                             <Button icon={<UploadOutlined />}>Select File</Button>
                             {stateProduct?.image && (<img src={stateProduct?.image} style={{ height: '60px', width: '60px', borderRadius: '50%', objectFit: 'cover', marginLeft: '10px' }} alt="avatar" />)}
                         </Upload>
                     </WrapperUploadFile>
+                </Form.Item>
+                <Form.Item label="Gallery" name="gallery" extra="Tối đa 6 ảnh bộ sưu tập">
+                  <Upload
+                    listType="picture-card"
+                    onChange={handleOnChangeGallery}
+                    maxCount={6}
+                    multiple
+                    fileList={mapGalleryToUploadList(stateProduct?.gallery || [])}
+                  >
+                    {(stateProduct?.gallery?.length || 0) >= 6 ? null : <div>+ Upload</div>}
+                  </Upload>
                 </Form.Item>
                 <Form.Item wrapperCol={{ offset: 6, span: 16 }}>
                     <Button type="primary" htmlType="submit">Submit</Button>
@@ -269,11 +325,22 @@ const AdminProduct = () => {
                 </Form.Item>
                 <Form.Item label="Hình ảnh" name="image" rules={[{ required: true, message: 'Vui lòng chọn ảnh!' }]}>
                     <WrapperUploadFile>
-                        <Upload onChange={handleOnChangeAvatarDetails} maxCount={1}>
+                    <Upload onChange={handleOnChangeAvatarDetails} maxCount={1} fileList={stateProductDetails?.image ? [{ uid: 'main-image-details', name: 'main-image.png', status: 'done', url: stateProductDetails.image }] : []}>
                             <Button icon={<UploadOutlined />}>Select File</Button>
                             {stateProductDetails?.image && (<img src={stateProductDetails?.image} style={{ height: '60px', width: '60px', borderRadius: '50%', objectFit: 'cover', marginLeft: '10px' }} alt="avatar" />)}
                         </Upload>
                     </WrapperUploadFile>
+                </Form.Item>
+                <Form.Item label="Gallery" name="gallery" extra="Tối đa 6 ảnh bộ sưu tập">
+                  <Upload
+                    listType="picture-card"
+                    onChange={handleOnChangeGalleryDetails}
+                    maxCount={6}
+                    multiple
+                    fileList={mapGalleryToUploadList(stateProductDetails?.gallery || [])}
+                  >
+                    {(stateProductDetails?.gallery?.length || 0) >= 6 ? null : <div>+ Upload</div>}
+                  </Upload>
                 </Form.Item>
                 <Form.Item wrapperCol={{ offset: 6, span: 16 }}>
                     <Button type="primary" htmlType="submit">Cập nhật</Button>
