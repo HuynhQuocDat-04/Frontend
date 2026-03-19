@@ -98,6 +98,7 @@ const AdminProduct = () => {
     { title: 'Price', dataIndex: 'price', sorter: (a, b) => a.price - b.price },
     { title: 'Rating', dataIndex: 'rating', sorter: (a, b) => a.rating - b.rating },
     { title: 'Type', dataIndex: 'type' },
+    { title: 'Số lượng', dataIndex: 'countInStock', sorter: (a, b) => a.countInStock - b.countInStock },
     { title: 'Action', dataIndex: 'action', render: renderAction },
   ];
 

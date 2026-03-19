@@ -141,10 +141,11 @@ const ProductDetailComponent = ({ idProduct }) => {
                 </Col>
                 <Col span={14} style={{ paddingLeft: '10px' }}>
                     <WrapperStyleNameProduct>{productDetails?.name}</WrapperStyleNameProduct>
-                    <div>
-                        <StarFilled style={{ fontSize: '12px', color: 'rgb(255, 196, 0)' }} />
-                        <StarFilled style={{ fontSize: '12px', color: 'rgb(255, 196, 0)' }} />
-                        <StarFilled style={{ fontSize: '12px', color: 'rgb(255, 196, 0)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div>
+                            <span>{productDetails?.rating}</span>
+                            <StarFilled style={{ fontSize: '12px', color: 'rgb(255, 196, 0)', marginLeft: '4px' }} />
+                        </div>
                         <WrapperStyleTextSell> | Đã bán {productDetails?.selled || 0}+</WrapperStyleTextSell>
                     </div>
                     <WrapperPriceProduct>
@@ -205,12 +206,6 @@ const ProductDetailComponent = ({ idProduct }) => {
                             textButton={'Chọn mua'}
                             styleTextButton={{ color: '#fff', fontSize: '15px', fontWeight: '700' }}
                             onClick={handleAddOrderProduct} 
-                        ></ButtonComponent>
-                        <ButtonComponent
-                            size={40}
-                            styleButton={{ background: '#fff', height: '48px', width: '220px', border: '1px solid rgb(13, 92, 182)', borderRadius: '4px' }}
-                            textButton={'Mua trả sau'}
-                            styleTextButton={{ color: 'rgb(13, 92, 182)', fontSize: '15px' }}
                         ></ButtonComponent>
                     </div>
                 </Col>
